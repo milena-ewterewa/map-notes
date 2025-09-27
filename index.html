@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Интерактивная карта мира</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Левая часть - карта */
+    #map {
+      flex: 2;
+      border-right: 2px solid #ddd;
+    }
+
+    /* Правая часть - заметки */
+    #sidebar {
+      flex: 1;
+      padding: 15px;
+      background: #fafafa;
+      overflow-y: auto;
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    .note {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #fff;
+      transition: background 0.3s;
+    }
+
+    .note.filled {
+      background: #fff9d6; /* нежно-жёлтый */
+    }
+
+    input, textarea {
+      width: 100%;
+      margin-bottom: 8px;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="sidebar">
+    <h2>Заметки</h2>
+    <div id="notes"></div>
+  </div>
+
+  <!-- Подключаем Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <script>
+    // Инициализация карты
+    const map = L.map('map').setView([20, 0], 2);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    // Загружаем границы стран (GeoJSON)
+    fetch("https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json")
+      .then(res => res.json())
+      .then(data => {
+        L.geoJSON(data, {
+          style: {
+            color: "#555",
+            weight: 1,
+            fillColor: "#e0e0e0",
+            fillOpacity: 0.6
+          },
+          onEachFeature: (feature, layer) => {
+            layer.on("click", () => {
+              const country = feature.properties.name;
+              addNote(country);
+            });
+          }
+        }).addTo(map);
+      });
+
+    // Добавляем заметку
+    function addNote(country) {
+      const notesDiv = document.getElementById("notes");
+
+      const note = document.createElement("div");
+      note.className = "note";
+
+      note.innerHTML = `
+        <h3>${country}</h3>
+        <input type="text" placeholder="Название команды" class="team">
+        <textarea placeholder="Заметка"></textarea>
+        <input type="file" class="photo">
+        <button>Сохранить</button>
+      `;
+
+      const button = note.querySelector("button");
+      button.addEventListener("click", () => {
+        note.classList.add("filled");
+        saveNotes();
+      });
+
+      notesDiv.appendChild(note);
+    }
+
+    // Сохраняем в localStorage
+    function saveNotes() {
+      const notes = [];
+      document.querySelectorAll(".note").forEach(note => {
+        notes.push({
+          country: note.querySelector("h3").innerText,
+          team: note.querySelector(".team").value,
+          text: note.querySelector("textarea").value
+        });
+      });
+      localStorage.setItem("notes", JSON.stringify(notes));
+    }
+
+    // Загружаем из localStorage
+    function loadNotes() {
+      const data = JSON.parse(localStorage.getItem("notes") || "[]");
+      data.forEach(n => {
+        addNote(n.country);
+        const lastNote = document.querySelector(".note:last-child");
+        lastNote.querySelector(".team").value = n.team;
+        lastNote.querySelector("textarea").value = n.text;
+        lastNote.classList.add("filled");
+      });
+    }
+
+    loadNotes();
+  </script>
+</body>
+</html>
