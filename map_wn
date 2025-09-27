@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>3D Глобус с заметками</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    #globeViz {
+      flex: 2;
+    }
+    #sidebar {
+      flex: 1;
+      padding: 15px;
+      background: #fafafa;
+      overflow-y: auto;
+      border-left: 2px solid #ddd;
+    }
+    h2 { margin-top: 0; }
+    .note {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #fff;
+      transition: background 0.3s;
+    }
+    .note.filled { background: #fff9d6; }
+    input, textarea {
+      width: 100%;
+      margin-bottom: 8px;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover { background: #45a049; }
+  </style>
+</head>
+<body>
+  <div id="globeViz"></div>
+  <div id="sidebar">
+    <h2>Заметки</h2>
+    <div id="notes"></div>
+  </div>
+
+  <!-- Подключаем библиотеки -->
+  <script src="https://unpkg.com/three"></script>
+  <script src="https://unpkg.com/globe.gl"></script>
+
+  <script>
+    // Создаём глобус
+    const Globe = window.Globe;
+    const globe = Globe()
+      (document.getElementById('globeViz'))
+      .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+      .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+      .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png');
+
+    // Пример точек (города)
+    let points = [
+      { name: "Москва", lat: 55.7558, lng: 37.6173, note: null },
+      { name: "Нью-Йорк", lat: 40.7128, lng: -74.0060, note: null },
+      { name: "Токио", lat: 35.6762, lng: 139.6503, note: null }
+    ];
+
+    // Показываем точки
+    globe
+      .pointsData(points)
+      .pointLat(d => d.lat)
+      .pointLng(d => d.lng)
+      .pointColor(d => d.note ? 'red' : 'yellow')
+      .pointAltitude(0.05)
+      .pointRadius(0.4)
+      .onPointClick(showNote);
+
+    // Отображение заметки
+    function showNote(d) {
+      const notesDiv = document.getElementById("notes");
+
+      // очищаем и показываем только заметку для города
+      notesDiv.innerHTML = "";
+      const note = document.createElement("div");
+      note.className = "note";
+      note.innerHTML = `
+        <h3>${d.name}</h3>
+        <input type="text" placeholder="Название команды" class="team" value="${d.note?.team || ''}">
+        <textarea placeholder="Заметка">${d.note?.text || ''}</textarea>
+        <button>Сохранить</button>
+      `;
+      notesDiv.appendChild(note);
+
+      const button = note.querySelector("button");
+      button.addEventListener("click", () => {
+        d.note = {
+          team: note.querySelector(".team").value,
+          text: note.querySelector("textarea").value
+        };
+        note.classList.add("filled");
+        saveNotes();
+        globe.pointsData([...points]); // обновить маркер (флажок)
+      });
+    }
+
+    // Сохраняем в localStorage
+    function saveNotes() {
+      localStorage.setItem("cityNotes", JSON.stringify(points));
+    }
+
+    // Загружаем из localStorage
+    function loadNotes() {
+      const saved = JSON.parse(localStorage.getItem("cityNotes") || "[]");
+      if (saved.length > 0) points = saved;
+      globe.pointsData(points);
+    }
+
+    loadNotes();
+  </script>
+</body>
+</html>
